@@ -4,7 +4,7 @@ import dotenv from 'dotenv';
 import { fetchEvents } from './fetchEvents.js';
 import historyRouter from './routes/history.js';
 import { createPublicClient, http } from 'viem';
-import { sepolia } from 'viem/chains';
+import { localhost } from 'viem/chains';
 
 dotenv.config();
 
@@ -12,9 +12,12 @@ const app = express();
 app.use(express.json());
 app.use('/history', historyRouter);
 
+// 配置为 Anvil 本地网络
+const anvilChain = { ...localhost, id: 31337 };
+
 const client = createPublicClient({
-  chain: sepolia,
-  transport: http(process.env.RPC_URL),
+  chain: anvilChain,
+  transport: http('http://localhost:8545'),
 });
 
 async function fetchLatestBlockNumber() {

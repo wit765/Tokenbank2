@@ -1,15 +1,18 @@
 // fetchEvents.js
 import { createPublicClient, http, parseAbiItem } from 'viem';
-import { sepolia } from 'viem/chains';
+import { localhost } from 'viem/chains';
 import mongoose from 'mongoose';
 import BankEvent from './models/BankEvent.js';
 
+// 配置为 Anvil 本地网络
+const anvilChain = { ...localhost, id: 31337 };
+
 const publicClient = createPublicClient({
-  chain: sepolia,
-  transport: http(process.env.RPC_URL),
+  chain: anvilChain,
+  transport: http('http://localhost:8545'),
 });
 
-const tokenBankAddress = '0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9';
+const tokenBankAddress = '0xdc64a140aa3e981100a9beca4e685f962f0cf6c9';
 
 // 事件 ABI 定义
 const depositEvent = parseAbiItem('event Deposit(address indexed user, uint256 amount)');

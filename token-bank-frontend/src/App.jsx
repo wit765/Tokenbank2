@@ -116,12 +116,12 @@ export default function App() {
   async function fetchHistory(addr) {
     if (!addr) return setHistory([]);
     try {
-      const res = await fetch(`/history?user=${addr}`);
+      const res = await fetch(`/history/${addr}`);
       if (!res.ok) throw new Error("请求历史记录失败");
       const data = await res.json();
       setHistory(data);
     } catch (e) {
-      alert("获取历史记录失败: " + e.message);
+      console.error("获取历史记录失败:", e);
       setHistory([]);
     }
   }
