@@ -1,0 +1,30 @@
+wit@DESKTOP-IHDDADV:/mnt/d/java/Token$ forge test --match-contract NFTMarketTest -vv
+[⠔] Compiling...
+[⠢] Compiling 1 files with Solc 0.8.30
+[⠰] Solc 0.8.30 finished in 636.55ms
+Compiler run successful!
+
+Ran 20 tests for test/NFTMarket.t.sol:NFTMarketTest
+[PASS] test_BuyNFT_AlreadySold() (gas: 349016)
+[PASS] test_BuyNFT_BuyOwnNFT() (gas: 325766)
+[PASS] test_BuyNFT_InsufficientAllowance() (gas: 341750)
+[PASS] test_BuyNFT_InsufficientBalance() (gas: 334274)
+[PASS] test_BuyNFT_NotListed() (gas: 24148)
+[PASS] test_BuyNFT_Success() (gas: 363322)
+[PASS] test_DelistNFT() (gas: 297787)
+[PASS] test_Fuzz_ListAndBuyNFT(uint256,address) (runs: 256, μ: 402448, ~: 402448)
+[PASS] test_Invariant_NoTokenBalance() (gas: 889296)
+[PASS] test_Invariant_NoTokenBalance_AfterMultipleTransactions() (gas: 2660007)
+[PASS] test_ListNFT_AlreadyListed() (gas: 328344)
+[PASS] test_ListNFT_NotApproved() (gas: 44153)
+[PASS] test_ListNFT_NotOwner() (gas: 33140)
+[PASS] test_ListNFT_Success() (gas: 338904)
+[PASS] test_ListNFT_UnsupportedToken() (gas: 1148286)
+[PASS] test_ListNFT_ZeroNFTContract() (gas: 22514)
+[PASS] test_ListNFT_ZeroPaymentToken() (gas: 22527)
+[PASS] test_ListNFT_ZeroPrice() (gas: 27059)
+[PASS] test_PauseAndUnpause() (gas: 337034)
+[PASS] test_UpdatePrice() (gas: 337667)
+Suite result: ok. 20 passed; 0 failed; 0 skipped; finished in 124.30ms (129.48ms CPU time)
+
+Ran 1 test suite in 127.45ms (124.30ms CPU time): 20 tests passed, 0 failed, 0 skipped (20 total tests)
