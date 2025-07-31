@@ -4,10 +4,9 @@ pragma solidity ^0.8.13;
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import "@openzeppelin/contracts/security/Pausable.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/Pausable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "./MyTokenExtended.sol";
 
 interface IERC20Receiver {
     function tokensReceived(
@@ -23,6 +22,7 @@ contract NFTMarket is IERC20Receiver, ERC721Holder, ReentrancyGuard, Pausable, O
         address seller;
         address nftContract;
         uint256 tokenId;
+        address paymentToken;  // 新增：支付代币地址
         uint256 price;
         bool isActive;
         uint256 listingTime;
@@ -34,12 +34,12 @@ contract NFTMarket is IERC20Receiver, ERC721Holder, ReentrancyGuard, Pausable, O
     address[] public listedNFTContracts;
     uint256[] public listedTokenIds;
     
-    event NFTListed(address indexed seller, address indexed nftContract, uint256 indexed tokenId, uint256 price, uint256 listingTime);
-    event NFTSold(address indexed seller, address indexed buyer, address indexed nftContract, uint256 tokenId, uint256 price, uint256 saleTime);
+    event NFTListed(address indexed seller, address indexed nftContract, uint256 indexed tokenId, address paymentToken, uint256 price, uint256 listingTime);
+    event NFTSold(address indexed seller, address indexed buyer, address indexed nftContract, uint256 tokenId, address paymentToken, uint256 price, uint256 saleTime);
     event NFTDelisted(address indexed seller, address indexed nftContract, uint256 indexed tokenId, uint256 delistTime);
     event TokensReceived(address indexed sender, address indexed recipient, uint256 amount, bytes data);
     
-    constructor() {
+    constructor() Ownable(msg.sender) {
         supportedTokens[address(0)] = false;
     }
     
@@ -52,8 +52,10 @@ contract NFTMarket is IERC20Receiver, ERC721Holder, ReentrancyGuard, Pausable, O
         supportedTokens[token] = false;
     }
     
-    function list(address nftContract, uint256 tokenId, uint256 price) external nonReentrant whenNotPaused {
+    function list(address nftContract, uint256 tokenId, address paymentToken, uint256 price) external nonReentrant whenNotPaused {
         require(nftContract != address(0), "NFT contract address cannot be zero");
+        require(paymentToken != address(0), "Payment token address cannot be zero");
+        require(supportedTokens[paymentToken], "Payment token not supported");
         require(price > 0, "Price must be greater than zero");
         require(IERC721(nftContract).ownerOf(tokenId) == msg.sender, "You don't own this NFT");
         require(
@@ -69,6 +71,7 @@ contract NFTMarket is IERC20Receiver, ERC721Holder, ReentrancyGuard, Pausable, O
             seller: msg.sender,
             nftContract: nftContract,
             tokenId: tokenId,
+            paymentToken: paymentToken,
             price: price,
             isActive: true,
             listingTime: block.timestamp
@@ -77,22 +80,29 @@ contract NFTMarket is IERC20Receiver, ERC721Holder, ReentrancyGuard, Pausable, O
         listedNFTContracts.push(nftContract);
         listedTokenIds.push(tokenId);
         
-        emit NFTListed(msg.sender, nftContract, tokenId, price, block.timestamp);
+        emit NFTListed(msg.sender, nftContract, tokenId, paymentToken, price, block.timestamp);
     }
     
-    function buyNFT(address nftContract, uint256 tokenId, address tokenAddress) external nonReentrant whenNotPaused {
-        require(supportedTokens[tokenAddress], "Token not supported");
-        
+    function buyNFT(address nftContract, uint256 tokenId) external nonReentrant whenNotPaused {
         Listing storage listing = listings[nftContract][tokenId];
         require(listing.isActive, "NFT not listed for sale");
         require(listing.seller != msg.sender, "Cannot buy your own NFT");
         
-        MyTokenExtended(tokenAddress).transferFrom(msg.sender, listing.seller, listing.price);
+        // 检查买家是否有足够的代币余额
+        require(IERC20(listing.paymentToken).balanceOf(msg.sender) >= listing.price, "Insufficient token balance");
+        
+        // 检查买家是否已授权足够的代币
+        require(IERC20(listing.paymentToken).allowance(msg.sender, address(this)) >= listing.price, "Insufficient token allowance");
+        
+        // 转移代币从买家到卖家
+        IERC20(listing.paymentToken).transferFrom(msg.sender, listing.seller, listing.price);
+        
+        // 转移NFT从市场到买家
         IERC721(nftContract).transferFrom(address(this), msg.sender, tokenId);
         
         listing.isActive = false;
         
-        emit NFTSold(listing.seller, msg.sender, nftContract, tokenId, listing.price, block.timestamp);
+        emit NFTSold(listing.seller, msg.sender, nftContract, tokenId, listing.paymentToken, listing.price, block.timestamp);
     }
     
     function tokensReceived(address sender, address recipient, uint256 amount, bytes calldata data) external override {
@@ -105,18 +115,19 @@ contract NFTMarket is IERC20Receiver, ERC721Holder, ReentrancyGuard, Pausable, O
         Listing storage listing = listings[nftContract][tokenId];
         require(listing.isActive, "NFT not listed for sale");
         require(listing.seller != sender, "Cannot buy your own NFT");
+        require(listing.paymentToken == msg.sender, "Payment token mismatch");
         require(amount >= listing.price, "Insufficient payment amount");
         
-        MyTokenExtended(msg.sender).transfer(listing.seller, listing.price);
+        IERC20(msg.sender).transfer(listing.seller, listing.price);
         
         if (amount > listing.price) {
-            MyTokenExtended(msg.sender).transfer(sender, amount - listing.price);
+            IERC20(msg.sender).transfer(sender, amount - listing.price);
         }
         
         IERC721(nftContract).transferFrom(address(this), sender, tokenId);
         listing.isActive = false;
         
-        emit NFTSold(listing.seller, sender, nftContract, tokenId, listing.price, block.timestamp);
+        emit NFTSold(listing.seller, sender, nftContract, tokenId, listing.paymentToken, listing.price, block.timestamp);
         emit TokensReceived(sender, recipient, amount, data);
     }
     
@@ -131,15 +142,18 @@ contract NFTMarket is IERC20Receiver, ERC721Holder, ReentrancyGuard, Pausable, O
         emit NFTDelisted(msg.sender, nftContract, tokenId, block.timestamp);
     }
     
-    function updatePrice(address nftContract, uint256 tokenId, uint256 newPrice) external {
+    function updatePrice(address nftContract, uint256 tokenId, address paymentToken, uint256 newPrice) external {
+        require(paymentToken != address(0), "Payment token address cannot be zero");
+        require(supportedTokens[paymentToken], "Payment token not supported");
         require(newPrice > 0, "Price must be greater than zero");
         
         Listing storage listing = listings[nftContract][tokenId];
         require(listing.isActive, "NFT not listed");
         require(listing.seller == msg.sender, "Only seller can update price");
         
+        listing.paymentToken = paymentToken;
         listing.price = newPrice;
-        emit NFTListed(msg.sender, nftContract, tokenId, newPrice, listing.listingTime);
+        emit NFTListed(msg.sender, nftContract, tokenId, paymentToken, newPrice, listing.listingTime);
     }
     
     function getListing(address nftContract, uint256 tokenId) external view returns (Listing memory) {

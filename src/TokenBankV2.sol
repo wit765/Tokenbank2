@@ -8,14 +8,6 @@ contract TokenBankV2 is TokenBank {
     // 事件
     event TokensReceived(address indexed sender, address indexed recipient, uint256 amount, bytes data);
     
-    /**
-     * @dev 实现 ERC20 扩展的 tokensReceived 回调
-     * 当用户使用 transferWithCallback 转账到 TokenBankV2 时，会自动调用此函数
-     * @param sender 发送者地址
-     * @param recipient 接收者地址（合约地址）
-     * @param amount 转账数量
-     * @param data 额外数据
-     */
     // 支持的扩展 Token 映射
     mapping(address => bool) public supportedTokens;
     
